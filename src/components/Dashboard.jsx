@@ -18,6 +18,7 @@ import { useMeetStore } from "@/stores/meetStore";
 export default function Dashboard({ onNavigate, onMeetSelect }) {
   const { setSelectedMeet } = useMeetStore();
   const [meets, setMeets] = useState([]);
+  const [meetsWithCounts, setMeetsWithCounts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Load meets from Firebase
@@ -27,6 +28,19 @@ export default function Dashboard({ onNavigate, onMeetSelect }) {
         const fetchedMeets = await db.getMeets();
         console.log('Loaded meets from Firebase:', fetchedMeets);
         setMeets(fetchedMeets);
+
+        // Load event counts for each meet
+        const meetsWithEventCounts = await Promise.all(
+          fetchedMeets.map(async (meet) => {
+            const events = await db.getEventsByMeet(meet.id);
+            return {
+              ...meet,
+              eventCount: events.length,
+            };
+          })
+        );
+
+        setMeetsWithCounts(meetsWithEventCounts);
       } catch (error) {
         console.error('Error loading meets:', error);
       } finally {
@@ -191,7 +205,7 @@ export default function Dashboard({ onNavigate, onMeetSelect }) {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {meets.map((meet) => (
+          {meetsWithCounts.map((meet) => (
             <div
               key={meet.id}
               className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 hover:shadow-md transition-all duration-200 group cursor-pointer"
@@ -239,7 +253,7 @@ export default function Dashboard({ onNavigate, onMeetSelect }) {
                 </div>
                 <div>
                   <div className="text-lg font-bold text-slate-800 dark:text-white font-inter">
-                    {meet.lanes}
+                    {meet.eventCount}
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400 font-inter">
                     Events

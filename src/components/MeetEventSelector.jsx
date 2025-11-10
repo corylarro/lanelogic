@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import { useMeetStore } from "@/stores/meetStore";
-import { getMeets } from "@/data/mockDB";
+import * as db from "@/lib/db";
 import { Calendar, Target } from "lucide-react";
 
 export default function MeetEventSelector({
@@ -12,11 +13,57 @@ export default function MeetEventSelector({
     selectedMeet,
     setSelectedMeet,
     setSelectedEvent,
-    getSelectedMeetEvents,
   } = useMeetStore();
 
-  const meets = getMeets();
-  const events = getSelectedMeetEvents();
+  const [meets, setMeets] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load meets from Firebase
+  useEffect(() => {
+    const loadMeets = async () => {
+      try {
+        const fetchedMeets = await db.getMeets();
+        setMeets(fetchedMeets);
+      } catch (error) {
+        console.error('Error loading meets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMeets();
+  }, []);
+
+  // Load events when meet is selected
+  useEffect(() => {
+    const loadEvents = async () => {
+      if (!selectedMeetId) {
+        setEvents([]);
+        return;
+      }
+
+      try {
+        const fetchedEvents = await db.getEventsByMeet(selectedMeetId);
+        setEvents(fetchedEvents);
+      } catch (error) {
+        console.error('Error loading events:', error);
+        setEvents([]);
+      }
+    };
+
+    loadEvents();
+  }, [selectedMeetId]);
+
+  if (loading) {
+    return (
+      <div className={className}>
+        <div className="text-slate-600 dark:text-slate-400 font-inter">
+          Loading meets...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={className}>
@@ -68,7 +115,7 @@ export default function MeetEventSelector({
               <option value="">Choose an event...</option>
               {events.map((event) => (
                 <option key={event.id} value={event.id}>
-                  {event.name} • {event.ageGroup}
+                  {event.name} • {event.gender} • {event.ageGroup}
                 </option>
               ))}
             </select>
@@ -85,6 +132,15 @@ export default function MeetEventSelector({
           />
           <p className="text-slate-600 dark:text-slate-400 text-lg font-inter">
             Select a meet to get started.
+          </p>
+        </div>
+      )}
+
+      {/* Meet Selected but No Events */}
+      {selectedMeetId && events.length === 0 && showEventSelector && (
+        <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200 font-inter">
+            This meet has no events yet. Add events to get started.
           </p>
         </div>
       )}
