@@ -1,7 +1,7 @@
 import { Calendar, MapPin, Edit3 } from "lucide-react";
 import { getStatusColor } from "@/utils/meetHelpers";
 
-export function MeetHeader({ meetData, onEditClick }) {
+export function MeetHeader({ meetData }) {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-150">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -24,13 +24,13 @@ export function MeetHeader({ meetData, onEditClick }) {
             </div>
             <div className="flex items-center gap-2">
               <MapPin size={16} />
-              <span className="font-inter">{meetData.location}</span>
+              <span className="font-inter">{meetData.venue}</span>
             </div>
           </div>
         </div>
 
         <button
-          onClick={onEditClick}
+          onClick={() => alert('Edit functionality coming soon!')}
           className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 font-inter hover:scale-105 active:scale-95"
         >
           <Edit3 size={16} />

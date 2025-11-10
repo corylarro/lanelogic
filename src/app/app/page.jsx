@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ensureAuth } from "@/lib/firebase"; // ✅ Firebase init
+import { ensureAuth } from "@/lib/firebase";
 import LaneLogicSidebar from "../../components/LaneLogicSidebar";
 import LaneLogicHeader from "../../components/LaneLogicHeader";
 import Dashboard from "../../components/Dashboard";
@@ -9,14 +9,16 @@ import PublicResults from "../../components/PublicResults";
 import ResultsEntry from "../../components/ResultsEntry";
 import MeetDetails from "../../components/MeetDetails";
 
-
 export default function LaneLogicApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedMeet, setSelectedMeet] = useState(null);
 
+  // Initialize Firebase authentication on app load
   useEffect(() => {
-    ensureAuth().catch(console.error);
+    ensureAuth().catch((error) => {
+      console.error('Firebase auth error:', error);
+    });
   }, []);
 
   const handleNavigate = (page) => {

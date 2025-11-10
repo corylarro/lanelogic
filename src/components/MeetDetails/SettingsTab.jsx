@@ -22,11 +22,11 @@ export function SettingsTab({ meetData }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 font-inter">
-                Location
+                Venue
               </label>
               <input
                 type="text"
-                defaultValue={meetData.location}
+                defaultValue={meetData.venue}
                 className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
               />
             </div>
@@ -55,22 +55,43 @@ export function SettingsTab({ meetData }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 font-inter">
-                Date
+                Status
               </label>
-              <input
-                type="date"
-                defaultValue="2024-03-14"
+              <select
+                defaultValue={meetData.status}
                 className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
-              />
+              >
+                <option value="draft">Draft</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <button className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-inter">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 font-inter">
+              Description
+            </label>
+            <textarea
+              defaultValue={meetData.description}
+              rows={4}
+              className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => alert('Save functionality coming soon!')}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-inter"
+            >
               <Save size={16} />
               Save Changes
             </button>
-            <button className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-inter">
+            <button
+              onClick={() => alert('Delete functionality coming soon!')}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-inter"
+            >
               <Trash2 size={16} />
               Delete Meet
             </button>

@@ -1,6 +1,6 @@
 import { Users, Target, Waves, Clock } from "lucide-react";
 
-export function MeetStats({ meetData }) {
+export function MeetStats({ meetData, events = [] }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -10,7 +10,7 @@ export function MeetStats({ meetData }) {
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-800 dark:text-white font-inter">
-              {meetData.totalSwimmers}
+              {meetData.totalSwimmers || 0}
             </div>
             <div className="text-slate-600 dark:text-slate-400 text-sm font-inter">
               Total Swimmers
@@ -26,7 +26,7 @@ export function MeetStats({ meetData }) {
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-800 dark:text-white font-inter">
-              {meetData.totalEvents}
+              {events.length}
             </div>
             <div className="text-slate-600 dark:text-slate-400 text-sm font-inter">
               Total Events
@@ -58,7 +58,7 @@ export function MeetStats({ meetData }) {
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-800 dark:text-white font-inter">
-              {meetData.duration}
+              {meetData.duration || '-'}
             </div>
             <div className="text-slate-600 dark:text-slate-400 text-sm font-inter">
               Duration

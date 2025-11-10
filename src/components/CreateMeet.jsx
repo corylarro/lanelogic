@@ -9,21 +9,20 @@ import {
   Users,
   Plus,
 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import * as db from "@/lib/db";
 
 export default function CreateMeet({ onNavigate, onBack }) {
   const [formData, setFormData] = useState({
     name: "",
     date: "",
     venue: "",
-    poolLength: "50m",
+    poolLength: "50",
     lanes: "8",
     description: "",
     selectedEvents: [],
   });
   const [errors, setErrors] = useState({});
-
-  const queryClient = useQueryClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Common swimming events
   const availableEvents = [
@@ -59,32 +58,6 @@ export default function CreateMeet({ onNavigate, onBack }) {
     acc[event.category].push(event);
     return acc;
   }, {});
-
-  // Create meet mutation
-  const createMeetMutation = useMutation({
-    mutationFn: async (meetData) => {
-      const response = await fetch("/api/meets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(meetData),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create meet");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      // Refresh the meets list
-      queryClient.invalidateQueries({ queryKey: ["meets"] });
-      // Navigate back to dashboard
-      onNavigate("dashboard");
-    },
-    onError: (error) => {
-      console.error("Error creating meet:", error);
-      // Could show a toast notification here
-    },
-  });
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -139,8 +112,54 @@ export default function CreateMeet({ onNavigate, onBack }) {
       return;
     }
 
-    // Submit the form using the mutation
-    createMeetMutation.mutate(formData);
+    setIsSubmitting(true);
+
+    try {
+      // Create the meet in Firebase
+      const meet = await db.createMeet({
+        name: formData.name,
+        date: formData.date,
+        venue: formData.venue,
+        poolLength: parseInt(formData.poolLength),
+        lanes: parseInt(formData.lanes),
+        description: formData.description,
+        status: 'draft',
+      });
+
+      console.log('Meet created:', meet);
+
+      // Create events for the meet
+      if (formData.selectedEvents.length > 0) {
+        const eventPromises = formData.selectedEvents.map((eventId, index) => {
+          const eventInfo = availableEvents.find(e => e.id === eventId);
+
+          // Parse event info to get distance and stroke
+          const distance = parseInt(eventInfo.name.split(' ')[0]);
+          const stroke = eventInfo.category;
+
+          return db.createEvent({
+            meetId: meet.id,
+            name: eventInfo.name,
+            distance: distance,
+            stroke: stroke,
+            gender: 'mixed', // Default, can be updated later
+            ageGroup: 'Open', // Default, can be updated later
+            order: index + 1,
+          });
+        });
+
+        await Promise.all(eventPromises);
+        console.log('Events created for meet');
+      }
+
+      // Navigate back to dashboard
+      onNavigate("dashboard");
+    } catch (error) {
+      console.error('Error creating meet:', error);
+      setErrors({ submit: 'Failed to create meet. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAddSwimmers = () => {
@@ -149,228 +168,238 @@ export default function CreateMeet({ onNavigate, onBack }) {
   };
 
   return (
-    <div className="flex-1 p-6 md:p-8 bg-slate-50 dark:bg-slate-900">
+    <div className="flex-1 p-6 md:p-8 bg-slate-50 dark:bg-slate-900 overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <button
-          onClick={() => onNavigate("dashboard")}
-          className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors duration-150"
-        >
-          <ArrowLeft size={20} className="text-slate-600 dark:text-slate-400" />
-        </button>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white font-inter">
-            Create New Meet
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400 font-inter">
-            Set up the basic information for your swim meet
-          </p>
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-4">
+          <button
+            onClick={() => onNavigate("dashboard")}
+            className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors duration-150"
+          >
+            <ArrowLeft
+              size={20}
+              className="text-slate-600 dark:text-slate-400"
+            />
+          </button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white font-inter">
+              Create New Meet
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400 font-inter">
+              Set up a new swimming competition
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Form */}
       <div className="max-w-4xl">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Meet Name */}
+          {/* Show submit error if exists */}
+          {errors.submit && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <p className="text-red-700 dark:text-red-400 font-inter">{errors.submit}</p>
+            </div>
+          )}
+
+          {/* Basic Information */}
           <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <label
-              htmlFor="meetName"
-              className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 font-inter"
-            >
-              <Calendar
-                size={16}
-                className="text-slate-500 dark:text-slate-500"
-              />
-              Meet Name
-            </label>
-            <input
-              id="meetName"
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
-              placeholder="e.g., Spring Championships 2024"
-              className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 font-inter ${
-                errors.name
-                  ? "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20"
-                  : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700"
-              } text-slate-800 dark:text-slate-200 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent`}
-            />
-            {errors.name && (
-              <p className="text-red-600 dark:text-red-400 text-sm mt-2 font-inter">
-                {errors.name}
-              </p>
-            )}
-          </div>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 font-inter">
+              Basic Information
+            </h2>
 
-          {/* Date and Venue Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Date */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <label
-                htmlFor="meetDate"
-                className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 font-inter"
-              >
-                <Calendar
-                  size={16}
-                  className="text-slate-500 dark:text-slate-500"
-                />
-                Date
-              </label>
-              <input
-                id="meetDate"
-                type="date"
-                value={formData.date}
-                onChange={(e) => handleInputChange("date", e.target.value)}
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 font-inter ${
-                  errors.date
-                    ? "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20"
-                    : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700"
-                } text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent`}
-              />
-              {errors.date && (
-                <p className="text-red-600 dark:text-red-400 text-sm mt-2 font-inter">
-                  {errors.date}
-                </p>
-              )}
-            </div>
+            <div className="space-y-4">
+              {/* Meet Name */}
+              <div>
+                <label
+                  htmlFor="meetName"
+                  className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block font-inter"
+                >
+                  Meet Name *
+                </label>
+                <div className="relative">
+                  <input
+                    id="meetName"
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    placeholder="e.g., Spring Championships 2024"
+                    className={`w-full px-4 py-3 rounded-lg border ${errors.name
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-slate-300 dark:border-slate-600 focus:ring-blue-500"
+                      } bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-inter`}
+                  />
+                </div>
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-500 font-inter">
+                    {errors.name}
+                  </p>
+                )}
+              </div>
 
-            {/* Venue */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <label
-                htmlFor="venue"
-                className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 font-inter"
-              >
-                <MapPin
-                  size={16}
-                  className="text-slate-500 dark:text-slate-500"
-                />
-                Venue
-              </label>
-              <input
-                id="venue"
-                type="text"
-                value={formData.venue}
-                onChange={(e) => handleInputChange("venue", e.target.value)}
-                placeholder="e.g., Aquatic Center Pool"
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 font-inter ${
-                  errors.venue
-                    ? "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20"
-                    : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700"
-                } text-slate-800 dark:text-slate-200 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent`}
-              />
-              {errors.venue && (
-                <p className="text-red-600 dark:text-red-400 text-sm mt-2 font-inter">
-                  {errors.venue}
-                </p>
-              )}
-            </div>
-          </div>
+              {/* Date & Venue */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="date"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block font-inter"
+                  >
+                    Date *
+                  </label>
+                  <div className="relative">
+                    <Calendar
+                      size={18}
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      id="date"
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) =>
+                        handleInputChange("date", e.target.value)
+                      }
+                      className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.date
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-slate-300 dark:border-slate-600 focus:ring-blue-500"
+                        } bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-inter`}
+                    />
+                  </div>
+                  {errors.date && (
+                    <p className="mt-1 text-sm text-red-500 font-inter">
+                      {errors.date}
+                    </p>
+                  )}
+                </div>
 
-          {/* Pool Configuration Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Pool Length */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <label
-                htmlFor="poolLength"
-                className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 font-inter"
-              >
-                <Ruler
-                  size={16}
-                  className="text-slate-500 dark:text-slate-500"
-                />
-                Pool Length
-              </label>
-              <select
-                id="poolLength"
-                value={formData.poolLength}
-                onChange={(e) =>
-                  handleInputChange("poolLength", e.target.value)
-                }
-                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200 font-inter"
-              >
-                <option value="25y">25 yards (Short Course Yards)</option>
-                <option value="25m">25 meters (Short Course Meters)</option>
-                <option value="50m">50 meters (Long Course Meters)</option>
-              </select>
-            </div>
-
-            {/* Number of Lanes */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-              <label
-                htmlFor="lanes"
-                className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 font-inter"
-              >
-                <Hash
-                  size={16}
-                  className="text-slate-500 dark:text-slate-500"
-                />
-                Number of Lanes
-              </label>
-              <select
-                id="lanes"
-                value={formData.lanes}
-                onChange={(e) => handleInputChange("lanes", e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200 font-inter"
-              >
-                <option value="4">4 lanes</option>
-                <option value="5">5 lanes</option>
-                <option value="6">6 lanes</option>
-                <option value="7">7 lanes</option>
-                <option value="8">8 lanes</option>
-                <option value="9">9 lanes</option>
-                <option value="10">10 lanes</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Add Events */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-4 font-inter">
-              <Plus size={16} className="text-slate-500 dark:text-slate-500" />
-              Add Events
-            </label>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 font-inter">
-              Select the events that will be part of this meet
-            </p>
-
-            {Object.entries(eventsByCategory).map(([category, events]) => (
-              <div key={category} className="mb-6 last:mb-0">
-                <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 font-inter">
-                  {category}
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {events.map((event) => (
-                    <button
-                      key={event.id}
-                      type="button"
-                      onClick={() => handleEventToggle(event.id)}
-                      className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200 font-inter ${
-                        formData.selectedEvents.includes(event.id)
-                          ? "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300"
-                          : "bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600"
-                      }`}
-                    >
-                      {event.name}
-                    </button>
-                  ))}
+                <div>
+                  <label
+                    htmlFor="venue"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block font-inter"
+                  >
+                    Venue *
+                  </label>
+                  <div className="relative">
+                    <MapPin
+                      size={18}
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      id="venue"
+                      type="text"
+                      value={formData.venue}
+                      onChange={(e) =>
+                        handleInputChange("venue", e.target.value)
+                      }
+                      placeholder="Aquatic Center"
+                      className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.venue
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-slate-300 dark:border-slate-600 focus:ring-blue-500"
+                        } bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 font-inter`}
+                    />
+                  </div>
+                  {errors.venue && (
+                    <p className="mt-1 text-sm text-red-500 font-inter">
+                      {errors.venue}
+                    </p>
+                  )}
                 </div>
               </div>
-            ))}
 
+              {/* Pool Configuration */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="poolLength"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block font-inter"
+                  >
+                    Pool Length
+                  </label>
+                  <div className="relative">
+                    <Ruler
+                      size={18}
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+                    />
+                    <select
+                      id="poolLength"
+                      value={formData.poolLength}
+                      onChange={(e) =>
+                        handleInputChange("poolLength", e.target.value)
+                      }
+                      className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 font-inter"
+                    >
+                      <option value="25">25m (Short Course)</option>
+                      <option value="50">50m (Long Course)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="lanes"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block font-inter"
+                  >
+                    Number of Lanes
+                  </label>
+                  <div className="relative">
+                    <Hash
+                      size={18}
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+                    />
+                    <select
+                      id="lanes"
+                      value={formData.lanes}
+                      onChange={(e) =>
+                        handleInputChange("lanes", e.target.value)
+                      }
+                      className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 font-inter"
+                    >
+                      {[4, 6, 8, 10].map((num) => (
+                        <option key={num} value={num}>
+                          {num} Lanes
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Event Selection */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 font-inter">
+              Select Events *
+            </h2>
             {errors.selectedEvents && (
-              <p className="text-red-600 dark:text-red-400 text-sm mt-2 font-inter">
+              <p className="mb-4 text-sm text-red-500 font-inter">
                 {errors.selectedEvents}
               </p>
             )}
 
-            {formData.selectedEvents.length > 0 && (
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-700 dark:text-blue-300 font-inter">
-                  <strong>{formData.selectedEvents.length}</strong> events
-                  selected
-                </p>
-              </div>
-            )}
+            <div className="space-y-4">
+              {Object.entries(eventsByCategory).map(([category, events]) => (
+                <div key={category}>
+                  <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 font-inter">
+                    {category}
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {events.map((event) => (
+                      <button
+                        key={event.id}
+                        type="button"
+                        onClick={() => handleEventToggle(event.id)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${formData.selectedEvents.includes(event.id)
+                          ? "bg-blue-600 text-white"
+                          : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+                          } font-inter`}
+                      >
+                        {event.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Description */}
@@ -412,10 +441,10 @@ export default function CreateMeet({ onNavigate, onBack }) {
 
             <button
               type="submit"
-              disabled={createMeetMutation.isPending}
+              disabled={isSubmitting}
               className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-all duration-150 active:scale-95 shadow-sm hover:shadow-md font-inter flex-1 sm:flex-initial"
             >
-              {createMeetMutation.isPending ? (
+              {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   Creating...
