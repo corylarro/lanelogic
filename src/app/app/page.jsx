@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { ensureAuth } from "@/lib/firebase";
+import { useState } from "react";
 import LaneLogicSidebar from "../../components/LaneLogicSidebar";
 import LaneLogicHeader from "../../components/LaneLogicHeader";
 import Dashboard from "../../components/Dashboard";
@@ -8,18 +7,12 @@ import HeatBuilder from "../../components/HeatBuilder";
 import PublicResults from "../../components/PublicResults";
 import ResultsEntry from "../../components/ResultsEntry";
 import MeetDetails from "../../components/MeetDetails";
+import Swimmers from "../../components/Swimmers";
 
 export default function LaneLogicApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedMeet, setSelectedMeet] = useState(null);
-
-  // Initialize Firebase authentication on app load
-  useEffect(() => {
-    ensureAuth().catch((error) => {
-      console.error('Firebase auth error:', error);
-    });
-  }, []);
 
   const handleNavigate = (page) => {
     setCurrentPage(page);
@@ -46,6 +39,8 @@ export default function LaneLogicApp() {
     switch (currentPage) {
       case "dashboard":
         return "Dashboard";
+      case "swimmers":
+        return "Swimmers";
       case "create-meet":
         return "Create Meet";
       case "meet-details":
@@ -72,6 +67,8 @@ export default function LaneLogicApp() {
             onMeetSelect={handleMeetSelect}
           />
         );
+      case "swimmers":
+        return <Swimmers />;
       case "create-meet":
         return <CreateMeet onNavigate={handleNavigate} />;
       case "meet-details":

@@ -1,3 +1,111 @@
+// Global swimmer roster - separate from meet-specific swimmers
+let globalSwimmers = [
+  {
+    id: "gs1",
+    first_name: "Sarah",
+    last_name: "Johnson",
+    team: "Dolphins",
+    gender: "female",
+    age: 14,
+    birthdate: "2010-05-12",
+    seedTime: "24.85",
+  },
+  {
+    id: "gs2",
+    first_name: "Mike",
+    last_name: "Chen",
+    team: "Sharks",
+    gender: "male",
+    age: 15,
+    birthdate: "2009-08-23",
+    seedTime: "23.12",
+  },
+  {
+    id: "gs3",
+    first_name: "Emma",
+    last_name: "Rodriguez",
+    team: "Waves",
+    gender: "female",
+    age: 13,
+    birthdate: "2011-03-15",
+    seedTime: "25.34",
+  },
+  {
+    id: "gs4",
+    first_name: "Alex",
+    last_name: "Thompson",
+    team: "Tigers",
+    gender: "male",
+    age: 16,
+    birthdate: "2008-11-07",
+    seedTime: "22.98",
+  },
+  {
+    id: "gs5",
+    first_name: "Jessica",
+    last_name: "Lee",
+    team: "Dolphins",
+    gender: "female",
+    age: 12,
+    birthdate: "2012-01-30",
+    seedTime: "26.12",
+  },
+];
+
+let swimmerIdCounter = 6;
+
+// Swimmer CRUD operations
+export const getAllSwimmers = () => {
+  return [...globalSwimmers];
+};
+
+export const getSwimmerById = (id) => {
+  return globalSwimmers.find((swimmer) => swimmer.id === id);
+};
+
+export const addSwimmer = (swimmerData) => {
+  const newSwimmer = {
+    id: `gs${swimmerIdCounter++}`,
+    first_name: swimmerData.first_name,
+    last_name: swimmerData.last_name,
+    team: swimmerData.team,
+    gender: swimmerData.gender,
+    age: parseInt(swimmerData.age),
+    birthdate: swimmerData.birthdate || "",
+    seedTime: swimmerData.seedTime || "",
+  };
+
+  globalSwimmers.push(newSwimmer);
+  return newSwimmer;
+};
+
+export const updateSwimmer = (id, swimmerData) => {
+  const index = globalSwimmers.findIndex((swimmer) => swimmer.id === id);
+  if (index === -1) return null;
+
+  globalSwimmers[index] = {
+    ...globalSwimmers[index],
+    first_name: swimmerData.first_name,
+    last_name: swimmerData.last_name,
+    team: swimmerData.team,
+    gender: swimmerData.gender,
+    age: parseInt(swimmerData.age),
+    birthdate: swimmerData.birthdate || "",
+    seedTime: swimmerData.seedTime || "",
+  };
+
+  return globalSwimmers[index];
+};
+
+export const deleteSwimmer = (id) => {
+  const index = globalSwimmers.findIndex((swimmer) => swimmer.id === id);
+  if (index === -1) return false;
+
+  globalSwimmers.splice(index, 1);
+  return true;
+};
+
+// Existing mockDB structure
 export const mockDB = {
   meets: [
     {
